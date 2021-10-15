@@ -1,4 +1,4 @@
-#funkRadio - world news and your favorite music
+# funkRadio - world news and your favorite music
 
 Listening to radio can be a laid-back way to keep yourself up to date with world events. However, broadcast radio cannot take into account individual music preferences of individuals. So sooner or later we turn the radio off. 
 
@@ -6,7 +6,7 @@ These project presents a Linux bash shell script that combines the best of both 
 
 The script is called funkRadio. You can use it to download and present news broadcasts from internet radio stations. Music comes by the courtesy of your own favourite mp3 files.
 
-##Setting up the funkRadio service
+## Setting up the funkRadio service
 
 The funkRadio.sh script has been tested in Arch Linux, Debian and Ubuntu environments. Other Linux distributions are probably OK as long as you can install these packages:
 
@@ -56,7 +56,7 @@ The making of the playlist is started when you type 'start' instead of another k
 When the playlist is ready, your terminal will show you the funkRadio control panel.
 
 
-##funkRadio Control Panel
+## funkRadio Control Panel
 
 The control panel presents a number of options and associated numbers used to select those options.
 
@@ -68,7 +68,7 @@ While listening, you can toggle  between music and news by typing 'Ctrl + C'.
 
 You can turn the radio off by typing 'CTRL + Z' (or by selecting the last option in the control panel).
 
-###Additional information
+### Additional information
 
 A script for downloading podcasts:
 https://github.com/ellencubed/bashpodder
