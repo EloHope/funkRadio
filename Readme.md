@@ -13,10 +13,11 @@ The funkRadio.sh script has been tested in Arch Linux, Debian and Ubuntu environ
 - vlc (includes cvlc)
 - wget
 - mpg123
-- ffmpeg (includes volumedetect)
+- ffmpeg (includes speechnorm filter)
 - youtube-dl
 - curl
-- mp3gain 
+- shuf
+
 
 After installing these packages, please create new directories in your home directory
 by typing on the terminal:
@@ -69,6 +70,9 @@ While listening, you can toggle  between music and news by typing 'Ctrl + C'.
 You can turn the radio off by typing 'CTRL + Z' (or by selecting the last option in the control panel).
 
 ### Additional information
+
+Here are some links demonstrating other ways to to work with
+podcasts on command line.
 
 A script for downloading podcasts:
 https://github.com/ellencubed/bashpodder
