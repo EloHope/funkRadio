@@ -5,50 +5,24 @@
 # developed for Linux bash shell.
 
 # Please make sure that you have installed the following packages:
-# vlc (includes cvlc)
-# wget
-# mpg123
-# ffmpeg (includes volumedetect)
-# youtube-dl
-# curl
-# mp3gain (How to install mp3gain to Debian: https://www.how2shout.com/linux/how-to-install-snap-snap-store-on-debian-11-bullseye-linux/)
+# - vlc (includes cvlc)
+# - wget
+# - mpg123
+# - ffmpeg (includes speechnorm filter)
+# - youtube-dl
+# - curl
+# - shuf
 
 
-
-# FUNCTIONS: NORMALIZING BROADCAST SOUND VOLUME, DOWNLOADING NEWS BROADCASTS =================================
+# =================================
+ 
+# FUNCTIONS: DOWNLOADING NEWS BROADCASTS AND NORMALIZING BROADCAST SOUND VOLUME IN SOME CASES
 
 # First we present functions that will be used in the main part of the script.
 # The bits of code for making music playlists, downloading news broadcasts 
 # and listening to funkRadio will follow later.
 
-normalize () {
-# This function boosts the sound volumes of selected news broadcasts.
-# Intermediate results will be located in the /tmp directory:
-touch /tmp/temporalis1.txt
-touch /tmp/temporalis2.txt
-echo "" > /tmp/temporalis1.txt
-echo "" > /tmp/temporalis2.txt
-# Measuring the original sound volume:
-ffmpeg -i $1 -af volumedetect -f null -y nul &> /tmp/temporalis1.txt
-# The maximum boost available without distorting sound:
-grep "max_volume" /tmp/temporalis1.txt > /tmp/temporalis2.txt
-# Obtaining the dB level with which sound will be enhanced
-max_available="$(awk -F " " '{print $(NF-1)}' /tmp/temporalis2.txt)"
-max_available_rounded="$(echo "$max_available" | awk -F "." '{print $(NF-1)}')"
-mar_direction=$(( -1 * max_available_rounded ))
-max_available_final="$(echo $mar_direction | awk -F "."  '{print $1}')"
-if (( max_available_final > 1 ))
-then
-    # We don't want to give a boost of more than 6 dB anyway:
-    if (( max_available_final > 6 )); then max_available_final=6; fi
-    # Sometimes you may be interested in obtaining the bitrate of the broadcast; we do not make use of it here.
-    # bitrate=$(ffprobe -v error -show_entries format=bit_rate -of default=noprint_wrappers=1:nokey=1 $1)
-    # When using the full script the filename of the news broadcast will be in the variable "$1":
-    mp3gain -g -p "${max_available_final}" $1 > /dev/null 2>&1
-    base_of_file="$(basename $1)"
-    echo "Normalized: ${max_available_final} dB" "$base_of_file" >> ~/funkRadio/Archive/funkRadiolog.txt
-fi
-}
+# =================================
 
 abcradnatnews () {
 # ABC Radio National does not seem to provide news podcasts. 
@@ -57,9 +31,11 @@ abcradnatnews () {
 now_is=$(date +%H); next_hour=$(date -d "$now_is + 1 hour" +'%H:%M:%S'); now_in_seconds=$(date +'%H:%M:%S'); SEC1=$(date +%s -d "${now_in_seconds}"); SEC2=$(date +%s -d "${next_hour}"); DIFFSEC=$(( SEC2 - SEC1 + 30 )); sleep "$DIFFSEC" # for testing just use "sleep 15"
 echo "Timer set for recording ABC news. Select additional broadcasts or listen to funkRadio."
 now=$(date +%F_%H-%M)
-cvlc -q http://live-radio01.mediahubaustralia.com/2RNW/mp3/ --sout file/mp3:/home/$USER/funkRadio/Talk/ABCradnatnews_"$now".mp3 --run-time=360 vlc://quit > /dev/null 2>&1
+cvlc -q http://live-radio01.mediahubaustralia.com/2RNW/mp3/ --sout file/mp3:/home/$USER/funkRadio/Talk/ABCradnatnews1_"$now".mp3 --run-time=360 vlc://quit > /dev/null 2>&1
 wait
-normalize /home/$USER/funkRadio/Talk/ABCradnatnews_"$now".mp3
+# ffmpeg speechnorm normalization: default value is speechnorm=p=0.95; here sound level is boosted somewhat more.
+ffmpeg -i /home/$USER/funkRadio/Talk/ABCradnatnews1_"$now".mp3 -filter:a speechnorm=p=0.96 /home/$USER/funkRadio/Talk/ABCradnatnews_"$now".mp3 > /dev/null 2>&1
+rm /home/$USER/funkRadio/Talk/ABCradnatnews1_"$now".mp3
 echo "ABCradnatnews"_"$now" >> ~/funkRadio/Archive/funkRadiolog.txt
 }
 
@@ -67,7 +43,10 @@ echo "ABCradnatnews"_"$now" >> ~/funkRadio/Archive/funkRadiolog.txt
 abcpm () {
 # News magazine available on weekdays after about 7 pm Sydney time.
 now=$(date +%F_%H-%M)
-wget -q -O ~/funkRadio/Talk/ABCpm_"$now".mp3 $(curl -s https://www.abc.net.au/radio/programs/pm/feed/8863592/podcast.xml | grep -o 'https*://[^"]*mp3' | head -1) > /dev/null 2>&1
+wget -q -O ~/funkRadio/Talk/ABCpm1_"$now".mp3 $(curl -s https://www.abc.net.au/radio/programs/pm/feed/8863592/podcast.xml | grep -o 'https*://[^"]*mp3' | head -1) > /dev/null 2>&1
+wait
+ffmpeg -i ~/funkRadio/Talk/ABCpm1_"$now".mp3 ~/funkRadio/Talk/ABCpm_"$now".mp3 > /dev/null 2>&1
+rm ~/funkRadio/Talk/ABCpm1_"$now".mp3
 echo "ABCpm"_"$now" >> ~/funkRadio/Archive/funkRadiolog.txt
 }
 
@@ -84,11 +63,11 @@ echo "Downloading BBC World Service News. Select additional broadcasts or listen
 now=$(date +%F_%H-%M)
 addr=$(wget -q -O - https://www.bbc.co.uk/programmes/p002vsmz/episodes/player | grep https://www.bbc.co.uk/sounds/play | grep -o -P '(?<=href=").*(?=")' | head -1) > /dev/null 2>&1
 youtube-dl -q --no-warnings -o ~/funkRadio/Talk/BBCnews_"$now" "${addr}" > /dev/null 2>&1
-ffmpeg -nostats -loglevel 0 -i ~/funkRadio/Talk/BBCnews_"$now" -acodec libmp3lame -ac 2 -ab 128k -ar 48000 ~/funkRadio/Talk/BBCnews_"$now".mp3 > /dev/null 2>&1
-# Old normalization: ffmpeg -i ~/funkRadio/Talk/BBCnews1_"$now".mp3 -af 'volume=2.8' ~/funkRadio/Talk/BBCnews_"$now".mp3 > /dev/null 2>&1
-wait
-normalize ~/funkRadio/Talk/BBCnews_"$now".mp3
+ffmpeg -nostats -loglevel 0 -i ~/funkRadio/Talk/BBCnews_"$now" -acodec libmp3lame -ac 2 -ab 128k -ar 48000 ~/funkRadio/Talk/BBCnews1_"$now".mp3 > /dev/null 2>&1
+# ffmpeg speechnorm normalization: default value is speechnorm=p=0.95; here sound level is boosted somewhat more.
+ffmpeg -i ~/funkRadio/Talk/BBCnews1_"$now".mp3 -filter:a speechnorm=p=0.97 ~/funkRadio/Talk/BBCnews_"$now".mp3 > /dev/null 2>&1
 rm ~/funkRadio/Talk/BBCnews_"$now"
+rm ~/funkRadio/Talk/BBCnews1_"$now".mp3
 }
 
 deutschlandfunk () {
@@ -96,10 +75,9 @@ deutschlandfunk () {
 echo "Downloading news from German public radio. Select additional broadcasts or listen to funkRadio."
 now=$(date +%F_%H-%M)
 wget -q -O ~/funkRadio/Talk/Deutschlandfunk1_"$now".mp3 http://ondemand-mp3.dradio.de/file/dradio/nachrichten/nachrichten.mp3 > /dev/null 2>&1
-ffmpeg -ss 3.9 -i ~/funkRadio/Talk/Deutschlandfunk1_"$now".mp3  ~/funkRadio/Talk/Deutschlandfunk_"$now".mp3 > /dev/null 2>&1
-# ffmpeg -i ~/funkRadio/Talk/Deutschlandfunk2_"$now".mp3 -af 'volume=1.5' ~/funkRadio/Talk/Deutschlandfunk_"$now".mp3 > /dev/null 2>&1
+# Removing a too loud station identification from the beginning of the file.
+ffmpeg -ss 3.9 -i ~/funkRadio/Talk/Deutschlandfunk1_"$now".mp3 ~/funkRadio/Talk/Deutschlandfunk_"$now".mp3 > /dev/null 2>&1
 wait
-normalize ~/funkRadio/Talk/Deutschlandfunk_"$now".mp3
 rm ~/funkRadio/Talk/Deutschlandfunk1_"$now".mp3
 echo "Deutschlandfunk"_"$now" >> ~/funkRadio/Archive/funkRadiolog.txt
 # address available at https://de1.api.radio-browser.info/pls/url/9bce1899-bc6e-11e9-acb2-52543be04c81
@@ -128,7 +106,8 @@ ylepsavo () {
 echo "Dowloading news from Savo region in Eastern Finland. Select additional broadcasts or listen to funkRadio."
 now=$(date +%F_%H-%M)
 wget -q -O ~/funkRadio/Talk/Ylepsavo1_"$now".mp3 $(curl -s https://feeds.yle.fi/areena/v1/series/1-4479312.rss? | grep -o 'https*://[^"]*mp3' | head -1) > /dev/null 2>&1
-ffmpeg -ss 3.5 -i ~/funkRadio/Talk/Ylepsavo1_"$now".mp3  ~/funkRadio/Talk/Ylepsavo_"$now".mp3  > /dev/null 2>&1
+# Removing a too loud station identification from the beginning of the file.
+ffmpeg -ss 3.5 -i ~/funkRadio/Talk/Ylepsavo1_"$now".mp3 ~/funkRadio/Talk/Ylepsavo_"$now".mp3  > /dev/null 2>&1
 touch ~/funkRadio/Talk/Ylepsavo_"$now".mp3 # Correcting timestamp.
 rm ~/funkRadio/Talk/Ylepsavo1_"$now".mp3
 echo "YLE_Savo"_"$now" >> ~/funkRadio/Archive/funkRadiolog.txt
@@ -139,7 +118,8 @@ yleppohjanmaa () {
 echo "Dowloading news from Pohjanmaa region in Northern Finland.. Select additional broadcasts or listen to funkRadio."
 now=$(date +%F_%H-%M)
 wget -q -O ~/funkRadio/Talk/Yleppohjanmaa1_"$now".mp3 $(curl -s https://feeds.yle.fi/areena/v1/series/1-4479456.rss? | grep -o 'https*://[^"]*mp3' | head -1) > /dev/null 2>&1
-ffmpeg -ss 3.5 -i ~/funkRadio/Talk/Yleppohjanmaa1_"$now".mp3  ~/funkRadio/Talk/Yleppohjanmaa_"$now".mp3  > /dev/null 2>&1
+# Removing a too loud station identification from the beginning of the file.
+ffmpeg -ss 3.5 -i ~/funkRadio/Talk/Yleppohjanmaa1_"$now".mp3 ~/funkRadio/Talk/Yleppohjanmaa_"$now".mp3  > /dev/null 2>&1
 touch ~/funkRadio/Talk/Yleppohjanmaa_"$now".mp3 # Correcting timestamp.
 rm ~/funkRadio/Talk/Yleppohjanmaa1_"$now".mp3
 echo "YLE_Pohjanmaa"_"$now" >> ~/funkRadio/Archive/funkRadiolog.txt
@@ -149,17 +129,19 @@ yleradiosuomi () {
 # News from the Finnish public broadcaster YLE.
 now=$(date +%F_%H-%M)
 wget -q -O ~/funkRadio/Talk/YLE_Radio_Suomi1_"$now".mp3 $(curl -s https://feeds.yle.fi/areena/v1/series/1-1440981.rss? | grep -o 'https*://[^"]*mp3' | head -1) > /dev/null 2>&1
+# Removing a too loud station identification from the beginning of the file.
 ffmpeg -ss 3.5 -i ~/funkRadio/Talk/YLE_Radio_Suomi1_"$now".mp3 ~/funkRadio/Talk/YLE_Radio_Suomi_"$now".mp3  > /dev/null 2>&1
 touch ~/funkRadio/Talk/YLE_Radio_Suomi_"$now".mp3 # Correcting timestamp.
 rm ~/funkRadio/Talk/YLE_Radio_Suomi1_"$now".mp3
 echo "YLE_Radio_Finland"_"$now" >> ~/funkRadio/Archive/funkRadiolog.txt
 }
 
-
-# MORE FUNCTIONS: SELECT MUSIC DIRECTORY, MAKE PLAYLISTS, PLAY NEWS BROADCASTS & MUSIC =================================
+# =================================
+# MORE FUNCTIONS: SELECT MUSIC DIRECTORY, MAKE PLAYLISTS, PLAY NEWS BROADCASTS & MUSIC
 
 # First, let us select directory which, or its subdirectories contain mp3 files
 # that your may want to include in your music playlist.
+# =================================
 
 
 select_music_directory () {
@@ -184,22 +166,7 @@ fi
 echo "Music playlist will be based on "$fav" and its subdirectories."
 }
 
-set_song_duration_limit () {
-# This function will be launched, if you decide (later along the script)
-# that you want to include only songs that are shorter 
-# than a set limit. That limit will be set by this function.
 
-echo "Please give maximum duration of songs in minutes."
-read max_dur
-if [ "$max_dur" -eq "$max_dur" ] 2>/dev/null # Testing if "$max_dur" is a number.
-then
-  max_dur_sec=$(( 60 * $max_dur ))
-else
-  echo "Not a number!"
-  wait 3
-  duration_to_be_limited="No"
-fi
-}
 
 make_playlist () {
 
@@ -207,7 +174,7 @@ if [[ "$fav" = "" ]]
 then
   select_music_directory
 else
-  echo: "Playlist will be based on the directory $fav. Press 'Enter' if that is OK. Press another key if not."
+  echo: "If it is OK that the playlist will be based on the directory $fav, press 'Enter'. Press another key if it is not OK."
   read music_dir_decision
   if [[ "$music_dir_decision" != "" ]]
   then
@@ -215,16 +182,16 @@ else
   fi
 fi
 
-echo "If you want to include songs regardless of duration, press 'Enter'. Press some other key to include only short songs."
-read song_dur_decision
-if [[ "$song_dur_decision" != "" ]]
+echo "If duration of songs does not matter, please press 'Enter'. Otherwise, type maximum duration of songs in minutes."
+read max_dur
+if [ "$max_dur" -eq "$max_dur" ] 2>/dev/null # Testing if "$max_dur" is a number.
 then
+  max_dur_sec=$(( 60 * $max_dur ))
   duration_to_be_limited="Yes"
-  set_song_duration_limit
 else
-max_dur=""
+  echo "This playlist does not exclude long pieces of music."
+  duration_to_be_limited="No"
 fi
-  
 
 # Next we set keywords that to used in building the playlist: 
 # names of music directories, artists etc. identifying our favorite music files.
@@ -235,7 +202,7 @@ cd $(dirname "$0") # Go to the directory containing this script.
   search_decision=just_to_get_started
   until [ "${search_decision}" = "start" ]
   do
-      echo "Type a keyword (music directory name, artist name etc.) to set up the playlist. Typing keyword 'start' will build the playlist."
+      echo "Type a keyword (only one at a time) - music directory, artist etc. - to set up the playlist. Typing keyword 'start' will build the playlist."
       read search_decision
       if [ "${search_decision}" != "start" ]
       then
@@ -260,7 +227,6 @@ cd $(dirname "$0") # Go to the directory containing this script.
         if [ "$duration_to_be_limited" = "Yes" ]
         then
             song_duration=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${song}")
-            # if (( ${song_duration%.*} <= echo "$max_dur_sec" ))
             if (( ${song_duration%.*} <= "$max_dur_sec" ))
             then
                 echo "${song}" >> "${Playlist}"
@@ -303,32 +269,40 @@ listen_to_the_radio () {
   echo "Now playing ${random_song_basename}"
   echo "${random_song_basename}" >> ~/funkRadio/Archive/funkRadiolog.txt
   mpg123 -C "${random_song}"
+  
+  declare -a array_of_news_broadcasts
+  for news in $(find /home/$USER/funkRadio/Talk/ -maxdepth 1 -name "*.mp3")
+  do
+    array_of_news_broadcasts=("${array_of_news_broadcasts[@]}" "${news}")
+  done
 
-  cd /home/$USER/funkRadio/Talk/
-  news_broadcast=$(find "/home/$USER/funkRadio/Talk/" -type f -printf '%T+ %f\n' | sort | head -n 1 | cut -d" " -f2)
-  if [[ "${news_broadcast}" != "" ]]
+  if [ ${#array_of_news_broadcasts[@]} -eq 0 ]
   then
-    clear
-    echo "Now playing ${news_broadcast}"
-    mpg123 -C "${news_broadcast}"
-    # If you want to archive news broadcasts:
-    # mv "${news_broadcast}" /home/"$USER"/funkRadio/Archive/
-    # Comment the following out if news broadcasts are archived.
-    rm "${news_broadcast}"
+    echo "No news broadcasts downloaded."
     sleep 1
     listen_to_the_radio
   else
-    echo "No news broadcasts downloaded yet."
-    listen_to_the_radio
+  #first_news_broadcast="$(find /home/$USER/funkRadio/Talk/ -type f -printf '%T+ %f\n' | sort | head -n 1 | cut -d" " -f2)"
+  #mpg123 -C "${array_of_news_broadcasts[0]
+  # mpg123 -C "${first_news_broadcast}"
+  first_news_broadcast="${array_of_news_broadcasts[0]}"
+  
+  mpg123 -C "${first_news_broadcast}"
+  # If you want to archive news broadcasts for later inspection:
+    # mv "${first_news_broadcast}" /home/"$USER"/funkRadio/Archive/
+    # Comment the following out if news broadcasts are archived.
+    rm "${first_news_broadcast}"
+    sleep 1
+    listen_to_the_radio  
   fi
 }
 
-
-# THE CONTROL PANEL OF FUNKRADIO: SELECT BROADCASTS TO BE DOWNLOADED =================================
-# AND PLAY FUNKRADIO OR TURN IT OFF =================================
+# =================================
+# THE CONTROL PANEL OF FUNKRADIO: SELECT BROADCASTS TO BE DOWNLOADED
+# AND PLAY FUNKRADIO OR TURN IT OFF
+# =================================
 
 control_panel () {
-
 while true
 do
 clear
@@ -427,8 +401,9 @@ done
 }
 
 
-# THE MAIN PART OF THE SCRIPT - USER INTERACTIONS START HERE =================================
-
+# =================================
+# THE MAIN PART OF THE SCRIPT - USER INTERACTIONS START HERE
+# =================================
 
 clear
 cd $(dirname "$0") # Go to the directory containing this script.
@@ -448,6 +423,8 @@ else
         then
             find ~/funkRadio/Talk/ -type f -name "*.mp3" -exec mv {} ~/funkRadio/Archive/ \;
             echo "Items were moved to the Archive directory."
+            # Taking this opportunity to delete blank lines:
+            sed -i '/^[[:space:]]*$/d' ~/funkRadio/Archive/funkRadiolog.txt
         else
             echo "$number_of_broadcasts broadcasts available."
         fi
