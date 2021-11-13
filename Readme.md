@@ -67,7 +67,8 @@ After having selected stations, you can start to listen to news  and music by se
 
 While listening, you can toggle  between music and news by typing 'Ctrl + C'. 
 
-You can turn the radio off by typing 'CTRL + Z' (or by selecting the last option in the control panel).
+You can turn the radio off by typing 'CTRL + Z'. The command sends the program to the background.
+Or you can select the last option on the control panel.
 
 ### Additional information
 
