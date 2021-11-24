@@ -8,10 +8,16 @@
 # - vlc (includes cvlc)
 # - wget
 # - mpg123
-# - ffmpeg (includes speechnorm filter)
+# - ffmpeg 4.4 or higher (to get speechnorm filter)
 # - youtube-dl
 # - curl
 # - shuf
+
+
+# Install ffmpeg 4.4 on Ubuntu with ppa:
+# https://ubuntuhandbook.org/index.php/2021/05/install-ffmpeg-4-4-ppa-ubuntu-20-04-21-04/
+# Compile ffmpeg 4.4 on Debian, Ubuntu and other distributions:
+# https://trac.ffmpeg.org/wiki/CompilationGuide/Ubuntu
 
 
 # =================================
@@ -25,16 +31,22 @@
 # =================================
 
 abcradnatnews () {
-# ABC Radio National does not seem to provide news podcasts. 
-# That is why we record their next news broadcast - 6 minutes on the hour 
-# (more exactly hour + 30 sec for supposed Internet delay).
-now_is=$(date +%H); next_hour=$(date -d "$now_is + 1 hour" +'%H:%M:%S'); now_in_seconds=$(date +'%H:%M:%S'); SEC1=$(date +%s -d "${now_in_seconds}"); SEC2=$(date +%s -d "${next_hour}"); DIFFSEC=$(( SEC2 - SEC1 + 30 )); sleep "$DIFFSEC" # for testing just use "sleep 15"
+# ABC Radio National seems not to provide news podcasts. 
+# That is why we record their next news broadcast for 6 minutes. 
+# (On the hour + estimated Internet delay).
 echo "Timer set for recording ABC news. Select additional broadcasts or listen to funkRadio."
+( now_is=$(date +%H); next_hour=$(date -d "$now_is + 1 hour" +'%H:%M:%S'); now_in_seconds=$(date +'%H:%M:%S'); SEC1=$(date +%s -d "${now_in_seconds}"); SEC2=$(date +%s -d "${next_hour}"); DIFFSEC=$(( SEC2 - SEC1 + 45 )); sleep "$DIFFSEC" ) &
+# for testing just use "sleep 30" #
+wait
 now=$(date +%F_%H-%M)
 cvlc -q http://live-radio01.mediahubaustralia.com/2RNW/mp3/ --sout file/mp3:/home/$USER/funkRadio/Talk/ABCradnatnews1_"$now".mp3 --run-time=360 vlc://quit > /dev/null 2>&1
-wait
-# ffmpeg speechnorm normalization: default value is speechnorm=p=0.95; here sound level is boosted somewhat more.
-ffmpeg -i /home/$USER/funkRadio/Talk/ABCradnatnews1_"$now".mp3 -filter:a speechnorm=p=0.96 /home/$USER/funkRadio/Talk/ABCradnatnews_"$now".mp3 > /dev/null 2>&1
+if [[ $speechresult = "Yes" ]]
+then
+	# ffmpeg speechnorm normalization: default value is speechnorm=p=0.95; here sound level is boosted somewhat more.
+	ffmpeg -i /home/$USER/funkRadio/Talk/ABCradnatnews1_"$now".mp3 -filter:a speechnorm=p=0.98 /home/$USER/funkRadio/Talk/ABCradnatnews_"$now".mp3 > /dev/null 2>&1
+else
+	ffmpeg -i /home/$USER/funkRadio/Talk/ABCradnatnews1_"$now".mp3 -af 'volume=2.1' /home/$USER/funkRadio/Talk/ABCradnatnews_"$now".mp3 > /dev/null 2>&1
+fi
 rm /home/$USER/funkRadio/Talk/ABCradnatnews1_"$now".mp3
 echo "ABCradnatnews"_"$now" >> ~/funkRadio/Archive/funkRadiolog.txt
 }
@@ -50,6 +62,18 @@ rm ~/funkRadio/Talk/ABCpm1_"$now".mp3
 echo "ABCpm"_"$now" >> ~/funkRadio/Archive/funkRadiolog.txt
 }
 
+
+bbc4news_briefing () {
+# A concise daily briefing available at about 7 am London time.
+echo "Downloading BBC Radio 4 News Briefing. Select additional broadcasts or listen to funkRadio."
+now=$(date +%F_%H-%M)
+addr=$(wget -q -O - https://www.bbc.co.uk/programmes/b007rhyn/episodes/player | grep https://www.bbc.co.uk/sounds/play | grep -o -P '(?<=href=").*(?=")' | head -1) > /dev/null 2>&1
+youtube-dl -q --no-warnings -o ~/funkRadio/Talk/bbc4news_briefing_"$now" "${addr}" > /dev/null 2>&1
+ffmpeg -nostats -loglevel 0 -i ~/funkRadio/Talk/bbc4news_briefing_"$now" -acodec libmp3lame -ac 2 -ab 128k -ar 48000 ~/funkRadio/Talk/bbc4news_briefing_"$now".mp3 > /dev/null 2>&1
+rm ~/funkRadio/Talk/bbc4news_briefing_"$now"
+}
+
+
 bbc4today () {
 # A selected part of Today programme of BBC Radio 4. Often about economic news.
 now=$(date +%F_%H-%M)
@@ -64,8 +88,13 @@ now=$(date +%F_%H-%M)
 addr=$(wget -q -O - https://www.bbc.co.uk/programmes/p002vsmz/episodes/player | grep https://www.bbc.co.uk/sounds/play | grep -o -P '(?<=href=").*(?=")' | head -1) > /dev/null 2>&1
 youtube-dl -q --no-warnings -o ~/funkRadio/Talk/BBCnews_"$now" "${addr}" > /dev/null 2>&1
 ffmpeg -nostats -loglevel 0 -i ~/funkRadio/Talk/BBCnews_"$now" -acodec libmp3lame -ac 2 -ab 128k -ar 48000 ~/funkRadio/Talk/BBCnews1_"$now".mp3 > /dev/null 2>&1
-# ffmpeg speechnorm normalization: default value is speechnorm=p=0.95; here sound level is boosted somewhat more.
-ffmpeg -i ~/funkRadio/Talk/BBCnews1_"$now".mp3 -filter:a speechnorm=p=0.97 ~/funkRadio/Talk/BBCnews_"$now".mp3 > /dev/null 2>&1
+if [[ $speechresult = "Yes" ]]
+then
+	# ffmpeg speechnorm normalization: default value is speechnorm=p=0.95; here sound level is boosted somewhat more.
+	ffmpeg -i ~/funkRadio/Talk/BBCnews1_"$now".mp3 -filter:a speechnorm=p=0.98 ~/funkRadio/Talk/BBCnews_"$now".mp3 > /dev/null 2>&1
+else
+	ffmpeg -i ~/funkRadio/Talk/BBCnews1_"$now".mp3 -af 'volume=2.8' ~/funkRadio/Talk/BBCnews_"$now".mp3 > /dev/null 2>&1
+fi
 rm ~/funkRadio/Talk/BBCnews_"$now"
 rm ~/funkRadio/Talk/BBCnews1_"$now".mp3
 }
@@ -322,7 +351,7 @@ cat <<- end
 7 Yleradiosuomi - news from the Finnish public broadcasting service in Finnish.
 8 Ylepsavo - regional news from the Northern Savo region in Finnish.
 9 Ylepohjanmaa - regional news from the Northern Pohjanmaa region in Finnish.
-10 BBC4today - a part of the Today programme of BBC Radio 4.
+10 BBC Radio 4 News Briefing - A 13 minute news summary available at about 7 am London time.
 11 ABCpm - news magazine from the ABC News.
 12 Make a new music playlist on the basis of your own keywords.
 13 Listen to the funkRadio - listen your favorite songs alternating with news.
@@ -335,10 +364,10 @@ end
   case "$selected_number" in
   "1")
       echo "Playing music while downloading broadcasts"
+			( bbc4news_briefing ) &
       ( npr ) &
       ( bbcnews ) &
       ( abcpm ) &
-      ( bbc4today ) &
       listen_to_the_radio
       ;;
   "2")
@@ -375,8 +404,8 @@ end
       ;;
       
   "10")
-      echo "Downloading a part of the Today programme of BBC Radio 4. Wait a sec before your next move."
-      ( bbc4today ) &
+      echo "Downloading BBC Radio 4 News Briefing. Wait a sec before your next move."
+      ( bbc4news_briefing ) &
       ;;
   "11")
       echo "Downloading the news magazine PM from ABC. Available on weekdays. Wait a sec before your next move."
@@ -414,6 +443,8 @@ then
     exit
 else
     fav=""
+    # Testing if speechnorm filter is available. It is available in ffmpeg version 4.4. and higher.
+    speechtest="$(ffmpeg -filters | grep -i speechnorm)"; if [[ "$speechtest" == *"speechnorm"* ]]; then speechresult="Yes"; else speechresult="No"; fi
     number_of_broadcasts=$(find ~/funkRadio/Talk/ -type f -name "*.mp3" | wc -l)
     if [ "$number_of_broadcasts" -gt 0 ]
     then
