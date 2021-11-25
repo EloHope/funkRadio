@@ -36,7 +36,7 @@ abcradnatnews () {
 # (On the hour + estimated Internet delay).
 echo "Timer set for recording ABC news. Select additional broadcasts or listen to funkRadio."
 ( now_is=$(date +%H); next_hour=$(date -d "$now_is + 1 hour" +'%H:%M:%S'); now_in_seconds=$(date +'%H:%M:%S'); SEC1=$(date +%s -d "${now_in_seconds}"); SEC2=$(date +%s -d "${next_hour}"); DIFFSEC=$(( SEC2 - SEC1 + 45 )); sleep "$DIFFSEC" ) &
-# for testing just use "sleep 30" #
+# for testing just use "sleep 30"
 wait
 now=$(date +%F_%H-%M)
 cvlc -q http://live-radio01.mediahubaustralia.com/2RNW/mp3/ --sout file/mp3:/home/$USER/funkRadio/Talk/ABCradnatnews1_"$now".mp3 --run-time=360 vlc://quit > /dev/null 2>&1
@@ -186,7 +186,7 @@ do
 done
 fav=$PWD/"$d"
 
-IFS= read -re -i "$fav" -p 'Please accept (Enter) or modify (type) the following: ' fav
+IFS= read -re -i "$fav" -p 'Please accept (Enter) or modify (type text) the following: ' fav
 lastchar=${fav: -1}
 if [[ $lastchar != / ]]
 then
@@ -436,7 +436,7 @@ done
 
 clear
 cd $(dirname "$0") # Go to the directory containing this script.
-echo "Press Enter to launch funkRadio. Press other keys to quit."
+echo "Press 'Enter' to launch funkRadio. Press other keys to quit."
 read launch_decision
 if [ "$launch_decision" != "" ]
 then
@@ -444,17 +444,16 @@ then
 else
     fav=""
     # Testing if speechnorm filter is available. It is available in ffmpeg version 4.4. and higher.
-    speechtest="$(ffmpeg -filters | grep -i speechnorm)"; if [[ "$speechtest" == *"speechnorm"* ]]; then speechresult="Yes"; else speechresult="No"; fi
+    speechtest="$(ffmpeg -filters | grep -i speechnorm)"; if [[ "$speechtest" == *"speechnorm"* ]]; then speechresult="Yes"; else speechresult="No"; fi > /dev/null 2>&1
     number_of_broadcasts=$(find ~/funkRadio/Talk/ -type f -name "*.mp3" | wc -l)
     if [ "$number_of_broadcasts" -gt 0 ]
     then
-        echo "$number_of_broadcasts broadcasts available. Press Enter to archive them. Press another key to keep them for listening."
-        read archive_decision
-        if [ "$archive_decision" = "" ]
+        echo "$number_of_broadcasts broadcasts available; press 'Enter' to remove them. Press other keys + 'Enter' to keep them for listening."
+        read remove_decision
+        if [ "$remove_decision" = "" ]
         then
-            find ~/funkRadio/Talk/ -type f -name "*.mp3" -exec mv {} ~/funkRadio/Archive/ \;
-            echo "Items were moved to the Archive directory."
-            # Taking this opportunity to delete blank lines:
+            find ~/funkRadio/Talk/ -type f -name "*.mp3" -exec rm {} \;
+            # Taking this opportunity to delete blank lines from funkRadiolog.txt:
             sed -i '/^[[:space:]]*$/d' ~/funkRadio/Archive/funkRadiolog.txt
         else
             echo "$number_of_broadcasts broadcasts available."
