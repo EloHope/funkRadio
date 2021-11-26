@@ -30,6 +30,17 @@
 
 # =================================
 
+speech_norm_test () {
+# Testing if speechnorm filter is available. It is available in ffmpeg version 4.4. and higher.
+speechtest="$(ffmpeg -v quiet -filters | grep -i speechnorm)" > /dev/null 2>&1
+if [[ "$speechtest" == *"speechnorm"* ]]
+then 
+	speechresult="Yes"
+else 
+	speechresult="No" 
+fi
+}
+
 abcradnatnews () {
 # ABC Radio National seems not to provide news podcasts. 
 # That is why we record their next news broadcast for 6 minutes. 
@@ -292,6 +303,19 @@ cd $(dirname "$0") # Go to the directory containing this script.
 
 listen_to_the_radio () {
   cd $(dirname "$0") # Go to the directory containing this script.
+	if [ "$timer_on" = "Yes" ]
+	then 
+		val1=$(date --date=$timer_limit +%s)
+		val2=$(date +%s)
+		if [ $val1 -gt $val2 ]
+		then 
+			:
+		else
+			echo "Stopped after time limit $timer_limit_readable was exceeded."
+			exit 0
+		fi
+	fi
+  
   clear
   random_song="$(shuf -n 1 "${Playlist}")"
   random_song_basename=$(basename "${random_song}")
@@ -341,6 +365,7 @@ then
 else
   echo "Music playlist ${Playlist} is empty. No music will be played."
 fi
+if [ "$timer_on" = "Yes" ]; then echo "Time limit is set at $timer_limit_readable."; fi
 cat <<- end
 1 Get news broadcasts in English and turn the funkRadio on. (Recommended.)
 2 ABCnews - will record 6 minutes of ABC Radio National news on the next hour.
@@ -443,8 +468,6 @@ then
     exit
 else
     fav=""
-    # Testing if speechnorm filter is available. It is available in ffmpeg version 4.4. and higher.
-    speechtest="$(ffmpeg -filters | grep -i speechnorm)"; if [[ "$speechtest" == *"speechnorm"* ]]; then speechresult="Yes"; else speechresult="No"; fi > /dev/null 2>&1
     number_of_broadcasts=$(find ~/funkRadio/Talk/ -type f -name "*.mp3" | wc -l)
     if [ "$number_of_broadcasts" -gt 0 ]
     then
@@ -459,6 +482,21 @@ else
             echo "$number_of_broadcasts broadcasts available."
         fi
     fi
+fi
+
+( speech_norm_test ) &
+
+echo "If you want a timer to switch off funkRadio, please give a time limit in minutes. Otherwise, press 'Enter'."
+read timer
+if [ "$timer" -eq "$timer" ] 2>/dev/null # Testing if "$timer" is a number.
+then
+  timer_now=$(date --iso-8601=seconds) 
+  timer_limit=$(date -d "$timer_now + ${timer} minutes" --iso-8601=seconds)
+  timer_limit_readable="$(date -d "$timer_limit" +'%T')"
+  timer_on="Yes"
+else
+  echo "Not a number. No time limit to listening!."
+  timer_on="No"
 fi
 
 clear
