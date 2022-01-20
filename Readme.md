@@ -17,6 +17,7 @@ The funkRadio.sh script has been tested in Arch Linux, Debian and Ubuntu environ
 - youtube-dl
 - curl
 - shuf
+- bc (for calculations)
 
 
 After installing these packages, please create new directories in your home directory
