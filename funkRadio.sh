@@ -8,15 +8,17 @@
 # - vlc (includes cvlc)
 # - wget
 # - mpg123
-# - ffmpeg 4.4 or higher (to get speechnorm filter)
+# - ffmpeg (version 4.4 or higher includes speechnorm filter, but
+# funkRadio runs OK even without that particular filter)
 # - youtube-dl
 # - curl
 # - shuf
+# - bc (for calculations)
 
 
 # Install ffmpeg 4.4 on Ubuntu with ppa:
 # https://ubuntuhandbook.org/index.php/2021/05/install-ffmpeg-4-4-ppa-ubuntu-20-04-21-04/
-# Compile ffmpeg 4.4 on Debian, Ubuntu and other distributions:
+# Install ffmpeg 4.4 on Debian, Ubuntu and other distributions:
 # https://trac.ffmpeg.org/wiki/CompilationGuide/Ubuntu
 
 
@@ -46,19 +48,20 @@ abcradnatnews () {
 # That is why we record their next news broadcast for 6 minutes. 
 # (On the hour + estimated Internet delay).
 echo "Timer set for recording ABC news. Select additional broadcasts or listen to funkRadio."
-( now_is=$(date +%H); next_hour=$(date -d "$now_is + 1 hour" +'%H:%M:%S'); now_in_seconds=$(date +'%H:%M:%S'); SEC1=$(date +%s -d "${now_in_seconds}"); SEC2=$(date +%s -d "${next_hour}"); DIFFSEC=$(( SEC2 - SEC1 + 45 )); sleep "$DIFFSEC" ) &
-# for testing just use "sleep 30"
+( now_is=$(date +%H); next_hour=$(date -d "$now_is + 1 hour" +'%H:%M:%S'); now_in_seconds=$(date +'%H:%M:%S'); SEC1=$(date +%s -d "${now_in_seconds}"); SEC2=$(date +%s -d "${next_hour}"); DIFFSEC=$(( SEC2 - SEC1 + 15 )); sleep "$DIFFSEC" ) &
+# sleep "$DIFFSEC" ) &
+# for testing: sleep 30 ) &
 wait
 now=$(date +%F_%H-%M)
-cvlc -q http://live-radio01.mediahubaustralia.com/2RNW/mp3/ --sout file/mp3:/home/$USER/funkRadio/Talk/ABCradnatnews1_"$now".mp3 --run-time=360 vlc://quit > /dev/null 2>&1
+cvlc -q http://live-radio01.mediahubaustralia.com/2RNW/mp3/ --sout file/mp3:/home/$USER/funkRadio/Talk/ABCradnatnews1_"$now" --run-time=360 vlc://quit > /dev/null 2>&1
 if [[ $speechresult = "Yes" ]]
 then
-	# ffmpeg speechnorm normalization: default value is speechnorm=p=0.95; here sound level is boosted somewhat more.
-	ffmpeg -i /home/$USER/funkRadio/Talk/ABCradnatnews1_"$now".mp3 -filter:a speechnorm=p=0.98 /home/$USER/funkRadio/Talk/ABCradnatnews_"$now".mp3 > /dev/null 2>&1
+	# ffmpeg speechnorm normalization: default value is speechnorm=p=0.95.
+	ffmpeg -i /home/$USER/funkRadio/Talk/ABCradnatnews1_"$now" -filter:a speechnorm=p=0.95 /home/$USER/funkRadio/Talk/ABCradnatnews_"$now".mp3 > /dev/null 2>&1
 else
-	ffmpeg -i /home/$USER/funkRadio/Talk/ABCradnatnews1_"$now".mp3 -af 'volume=2.1' /home/$USER/funkRadio/Talk/ABCradnatnews_"$now".mp3 > /dev/null 2>&1
+	ffmpeg -i /home/$USER/funkRadio/Talk/ABCradnatnews1_"$now" -af 'volume=2.1' /home/$USER/funkRadio/Talk/ABCradnatnews_"$now".mp3 > /dev/null 2>&1
 fi
-rm /home/$USER/funkRadio/Talk/ABCradnatnews1_"$now".mp3
+rm /home/$USER/funkRadio/Talk/ABCradnatnews1_"$now"
 echo "ABCradnatnews"_"$now" >> ~/funkRadio/Archive/funkRadiolog.txt
 }
 
@@ -85,6 +88,7 @@ rm ~/funkRadio/Talk/bbc4news_briefing_"$now"
 }
 
 
+# This option is not included in the control panel.
 bbc4today () {
 # A selected part of Today programme of BBC Radio 4. Often about economic news.
 now=$(date +%F_%H-%M)
@@ -101,8 +105,8 @@ youtube-dl -q --no-warnings -o ~/funkRadio/Talk/BBCnews_"$now" "${addr}" > /dev/
 ffmpeg -nostats -loglevel 0 -i ~/funkRadio/Talk/BBCnews_"$now" -acodec libmp3lame -ac 2 -ab 128k -ar 48000 ~/funkRadio/Talk/BBCnews1_"$now".mp3 > /dev/null 2>&1
 if [[ $speechresult = "Yes" ]]
 then
-	# ffmpeg speechnorm normalization: default value is speechnorm=p=0.95; here sound level is boosted somewhat more.
-	ffmpeg -i ~/funkRadio/Talk/BBCnews1_"$now".mp3 -filter:a speechnorm=p=0.98 ~/funkRadio/Talk/BBCnews_"$now".mp3 > /dev/null 2>&1
+	# ffmpeg speechnorm normalization: default value is speechnorm=p=0.95.
+	ffmpeg -i ~/funkRadio/Talk/BBCnews1_"$now".mp3 -filter:a speechnorm=p=0.95 ~/funkRadio/Talk/BBCnews_"$now".mp3 > /dev/null 2>&1
 else
 	ffmpeg -i ~/funkRadio/Talk/BBCnews1_"$now".mp3 -af 'volume=2.8' ~/funkRadio/Talk/BBCnews_"$now".mp3 > /dev/null 2>&1
 fi
@@ -115,10 +119,20 @@ deutschlandfunk () {
 echo "Downloading news from German public radio. Select additional broadcasts or listen to funkRadio."
 now=$(date +%F_%H-%M)
 wget -q -O ~/funkRadio/Talk/Deutschlandfunk1_"$now".mp3 http://ondemand-mp3.dradio.de/file/dradio/nachrichten/nachrichten.mp3 > /dev/null 2>&1
-# Removing a too loud station identification from the beginning of the file.
-ffmpeg -ss 3.9 -i ~/funkRadio/Talk/Deutschlandfunk1_"$now".mp3 ~/funkRadio/Talk/Deutschlandfunk_"$now".mp3 > /dev/null 2>&1
-wait
+# Removing loud station identifications from the beginning and the end of the file.
+news_de_duration_original=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 ~/funkRadio/Talk/Deutschlandfunk1_"$now".mp3)
+news_de_duration_trimmed=$(echo "$news_de_duration_original - 9.0 - 3.9" | bc -l | awk '{ printf("%.1f\n",$1) '})
+news_de_duration_trimmed=${news_de_duration_trimmed//,/.} # Replace comma with dot. Debian-based systems may need this.
+ffmpeg -ss 3.9 -i ~/funkRadio/Talk/Deutschlandfunk1_"$now".mp3 -t ${news_de_duration_trimmed} ~/funkRadio/Talk/Deutschlandfunk2_"$now".mp3 > /dev/null 2>&1
+if [[ $speechresult = "Yes" ]]
+then
+	# ffmpeg speechnorm normalization: default value is speechnorm=p=0.95.
+	ffmpeg -i ~/funkRadio/Talk/Deutschlandfunk2_"$now".mp3 -filter:a speechnorm=p=0.95 ~/funkRadio/Talk/Deutschlandfunk_"$now".mp3 > /dev/null 2>&1
+else
+	ffmpeg -i ~/funkRadio/Talk/Deutschlandfunk2_"$now".mp3 -af 'volume=2.8' ~/funkRadio/Talk/Deutschlandfunk_"$now".mp3 > /dev/null 2>&1
+fi
 rm ~/funkRadio/Talk/Deutschlandfunk1_"$now".mp3
+rm ~/funkRadio/Talk/Deutschlandfunk2_"$now".mp3
 echo "Deutschlandfunk"_"$now" >> ~/funkRadio/Archive/funkRadiolog.txt
 # address available at https://de1.api.radio-browser.info/pls/url/9bce1899-bc6e-11e9-acb2-52543be04c81
 }
@@ -321,7 +335,7 @@ listen_to_the_radio () {
   random_song_basename=$(basename "${random_song}")
   echo "Now playing ${random_song_basename}"
   echo "${random_song_basename}" >> ~/funkRadio/Archive/funkRadiolog.txt
-  mpg123 -C "${random_song}"
+  mpg123 -C "${random_song}" # With '-vC' mpg123 controls might actually work, but with additional screen output
   
   declare -a array_of_news_broadcasts
   for news in $(find /home/$USER/funkRadio/Talk/ -maxdepth 1 -name "*.mp3")
@@ -331,20 +345,18 @@ listen_to_the_radio () {
 
   if [ ${#array_of_news_broadcasts[@]} -eq 0 ]
   then
-    echo "No news broadcasts downloaded."
+    echo "No downloaded broadcasts available."
     sleep 1
     listen_to_the_radio
   else
-  #first_news_broadcast="$(find /home/$USER/funkRadio/Talk/ -type f -printf '%T+ %f\n' | sort | head -n 1 | cut -d" " -f2)"
-  #mpg123 -C "${array_of_news_broadcasts[0]
-  # mpg123 -C "${first_news_broadcast}"
-  first_news_broadcast="${array_of_news_broadcasts[0]}"
+  # first_news_broadcast="$(find /home/$USER/funkRadio/Talk/ -type f -printf '%T+ %f\n' | sort | head -n 1 | cut -d" " -f2)"
+  a_news_broadcast="${array_of_news_broadcasts[0]}"
   
-  mpg123 -C "${first_news_broadcast}"
+  mpg123 -C "${a_news_broadcast}" # With '-vC' mpg123 controls might actually work, but with additional screen output
   # If you want to archive news broadcasts for later inspection:
-    # mv "${first_news_broadcast}" /home/"$USER"/funkRadio/Archive/
+    # mv "${a_news_broadcast}" /home/"$USER"/funkRadio/Archive/
     # Comment the following out if news broadcasts are archived.
-    rm "${first_news_broadcast}"
+    rm "${a_news_broadcast}"
     sleep 1
     listen_to_the_radio  
   fi
