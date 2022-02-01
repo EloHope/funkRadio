@@ -197,7 +197,6 @@ echo "YLE_Radio_Finland"_"$now" >> ~/funkRadio/Archive/funkRadiolog.txt
 # that your may want to include in your music playlist.
 # =================================
 
-
 select_music_directory () {
 # Go to the home directory:
 cd ~
@@ -223,6 +222,10 @@ echo "Music playlist will be based on "$fav" and its subdirectories."
 
 
 make_playlist () {
+if [[ "$skip_music_decision" = "Yes" ]]
+then
+	control_panel
+fi
 
 if [[ "$fav" = "" ]]
 then
@@ -240,13 +243,13 @@ echo "If duration of songs does not matter, please press 'Enter'. Otherwise, typ
 read max_dur
 if [ "$max_dur" -eq "$max_dur" ] 2>/dev/null # Testing if "$max_dur" is a number.
 then
-  max_dur_sec=$(( 60 * $max_dur ))
-  duration_to_be_limited="Yes"
+	max_dur_sec=$(( 60 * $max_dur ))
+	duration_to_be_limited="Yes"
 else
-  echo "This playlist does not exclude long pieces of music."
-  duration_to_be_limited="No"
+	echo "This playlist does not exclude long pieces of music."
+	duration_to_be_limited="No"
 fi
-
+	
 # Next we set keywords that to used in building the playlist: 
 # names of music directories, artists etc. identifying our favorite music files.
 
@@ -331,11 +334,21 @@ listen_to_the_radio () {
 	fi
   
   clear
-  random_song="$(shuf -n 1 "${Playlist}")"
-  random_song_basename=$(basename "${random_song}")
-  echo "Now playing ${random_song_basename}"
-  echo "${random_song_basename}" >> ~/funkRadio/Archive/funkRadiolog.txt
-  mpg123 -C "${random_song}" # With '-vC' mpg123 controls might actually work, but with additional screen output
+  if [[ "$skip_music_decision" = "No" ]]
+  then
+		random_song="$(shuf -n 1 "${Playlist}")"
+		random_song_basename=$(basename "${random_song}")
+		echo "Now playing ${random_song_basename}"
+		echo "${random_song_basename}" >> ~/funkRadio/Archive/funkRadiolog.txt
+		mpg123 -C "${random_song}" # With '-vC' mpg123 controls might actually work, but with additional screen output
+	else
+	  if [ -e "$HOME/funkRadio/ocean_wave.mp3" ]
+	  then
+			mpg123 -C "$HOME/funkRadio/ocean_wave.mp3"
+		else
+		  sleep 2
+		fi
+  fi
   
   declare -a array_of_news_broadcasts
   for news in $(find /home/$USER/funkRadio/Talk/ -maxdepth 1 -name "*.mp3")
@@ -345,9 +358,14 @@ listen_to_the_radio () {
 
   if [ ${#array_of_news_broadcasts[@]} -eq 0 ]
   then
-    echo "No downloaded broadcasts available."
-    sleep 1
+    # echo "No downloaded broadcasts available."
+    if [[ "$skip_music_decision" = "Yes" ]]
+		then
+			echo "No downloaded broadcasts are available and no music playlist was selected."
+			exit 0
+		else
     listen_to_the_radio
+    fi
   else
   # first_news_broadcast="$(find /home/$USER/funkRadio/Talk/ -type f -printf '%T+ %f\n' | sort | head -n 1 | cut -d" " -f2)"
   a_news_broadcast="${array_of_news_broadcasts[0]}"
@@ -498,47 +516,63 @@ fi
 
 ( speech_norm_test ) &
 
-echo "If you want a timer to switch off funkRadio, please give a time limit in minutes. Otherwise, press 'Enter'."
-read timer
-if [ "$timer" -eq "$timer" ] 2>/dev/null # Testing if "$timer" is a number.
+# Select this option if you only want hear news, not music.
+echo "If you only want hear news, not music, please press 'Enter'. Otherwise, press other keys and Enter."
+read skip_decision
+if [[ "$skip_decision" = "" ]]
 then
-  timer_now=$(date --iso-8601=seconds) 
-  timer_limit=$(date -d "$timer_now + ${timer} minutes" --iso-8601=seconds)
-  timer_limit_readable="$(date -d "$timer_limit" +'%T')"
-  timer_on="Yes"
+	skip_music_decision="Yes"
 else
-  echo "Not a number. No time limit to listening!."
-  timer_on="No"
+	skip_music_decision="No"
+	
+	echo "If you want a timer to switch off funkRadio, please give a time limit in minutes. Otherwise, press 'Enter'."
+	read timer
+	if [ "$timer" -eq "$timer" ] 2>/dev/null # Testing if "$timer" is a number.
+	then
+		timer_now=$(date --iso-8601=seconds) 
+		timer_limit=$(date -d "$timer_now + ${timer} minutes" --iso-8601=seconds)
+		timer_limit_readable="$(date -d "$timer_limit" +'%T')"
+		timer_on="Yes"
+	else
+		echo "Not a number. No time limit to listening!."
+		timer_on="No"
+	fi
 fi
+
+
 
 clear
 cd $(dirname "$0") # Go to the directory containing this script.
-declare -a array_of_playlists
-for plist in $(find . -maxdepth 1 -name "*.m3u")
-do
-  array_of_playlists=("${array_of_playlists[@]}" "$plist")
-done
 
-if [ ${#array_of_playlists[@]} -eq 0 ]
+if [[ "$skip_music_decision" = "No" ]]
 then
-  make_playlist
-else
-  clear
-  echo "${#array_of_playlists[@]} playlists are available."
-  PS3='Type a number to select playlist. Type 0 to make a new playlist.'
-  select Playlist in "${array_of_playlists[@]}"
-  do
-    if [[ $REPLY == "0" ]]
-    then
-        make_playlist
-    else
-        break
-    fi
-  done
-  echo "The chosen playlist was" "$REPLY" "${Playlist}"
-  Playlist_lines=$(wc -l "${Playlist}" | awk '{ print $1 }')
-  echo "Music playlist is ${Playlist} - it has $Playlist_lines songs."
-  control_panel
-fi
+	declare -a array_of_playlists
+	for plist in $(find . -maxdepth 1 -name "*.m3u")
+	do
+		array_of_playlists=("${array_of_playlists[@]}" "$plist")
+	done
 
+	if [ ${#array_of_playlists[@]} -eq 0 ]
+	then
+		make_playlist
+	else
+		clear
+		echo "${#array_of_playlists[@]} playlists are available."
+		PS3='Type a number to select playlist. Type 0 to make a new playlist.'
+		select Playlist in "${array_of_playlists[@]}"
+		do
+			if [[ $REPLY == "0" ]]
+			then
+					make_playlist
+			else
+					break
+			fi
+		done
+		echo "The chosen playlist was" "$REPLY" "${Playlist}"
+		Playlist_lines=$(wc -l "${Playlist}" | awk '{ print $1 }')
+		echo "Music playlist is ${Playlist} - it has $Playlist_lines songs."
+		control_panel
+	fi
+fi
+control_panel
 # ~/funkRadio/funkRadio.sh
