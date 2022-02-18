@@ -115,15 +115,15 @@ rm ~/funkRadio/Talk/BBCnews1_"$now".mp3
 }
 
 deutschlandfunk () {
-# News from German public radio.
+# News from the German public radio.
 echo "Downloading news from German public radio. Select additional broadcasts or listen to funkRadio."
 now=$(date +%F_%H-%M)
-wget -q -O ~/funkRadio/Talk/Deutschlandfunk1_"$now".mp3 http://ondemand-mp3.dradio.de/file/dradio/nachrichten/nachrichten.mp3 > /dev/null 2>&1
+wget -q -O ~/funkRadio/Talk/Deutschlandfunk1_"$now" http://ondemand-mp3.dradio.de/file/dradio/nachrichten/nachrichten.mp3 > /dev/null 2>&1
 # Removing loud station identifications from the beginning and the end of the file.
-news_de_duration_original=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 ~/funkRadio/Talk/Deutschlandfunk1_"$now".mp3)
+news_de_duration_original=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 ~/funkRadio/Talk/Deutschlandfunk1_"$now")
 news_de_duration_trimmed=$(echo "$news_de_duration_original - 9.0 - 3.9" | bc -l | awk '{ printf("%.1f\n",$1) '})
 news_de_duration_trimmed=${news_de_duration_trimmed//,/.} # Replace comma with dot. Debian-based systems may need this.
-ffmpeg -ss 3.9 -i ~/funkRadio/Talk/Deutschlandfunk1_"$now".mp3 -t ${news_de_duration_trimmed} ~/funkRadio/Talk/Deutschlandfunk2_"$now".mp3 > /dev/null 2>&1
+ffmpeg -ss 3.9 -i ~/funkRadio/Talk/Deutschlandfunk1_"$now" -t ${news_de_duration_trimmed} ~/funkRadio/Talk/Deutschlandfunk2_"$now".mp3 > /dev/null 2>&1
 if [[ $speechresult = "Yes" ]]
 then
 	# ffmpeg speechnorm normalization: default value is speechnorm=p=0.95.
@@ -131,7 +131,7 @@ then
 else
 	ffmpeg -i ~/funkRadio/Talk/Deutschlandfunk2_"$now".mp3 -af 'volume=2.8' ~/funkRadio/Talk/Deutschlandfunk_"$now".mp3 > /dev/null 2>&1
 fi
-rm ~/funkRadio/Talk/Deutschlandfunk1_"$now".mp3
+rm ~/funkRadio/Talk/Deutschlandfunk1_"$now"
 rm ~/funkRadio/Talk/Deutschlandfunk2_"$now".mp3
 echo "Deutschlandfunk"_"$now" >> ~/funkRadio/Archive/funkRadiolog.txt
 # address available at https://de1.api.radio-browser.info/pls/url/9bce1899-bc6e-11e9-acb2-52543be04c81
@@ -231,7 +231,7 @@ if [[ "$fav" = "" ]]
 then
   select_music_directory
 else
-  echo: "If it is OK that the playlist will be based on the directory $fav, press 'Enter'. Press another key if it is not OK."
+  echo "If it is OK that the playlist will be based on the directory $fav, press 'Enter'. Press another key if it is not OK."
   read music_dir_decision
   if [[ "$music_dir_decision" != "" ]]
   then
