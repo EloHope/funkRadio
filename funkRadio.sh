@@ -44,6 +44,7 @@ fi
 }
 
 abcradnatnews () {
+trap '' 2  # Disable Ctrl + C within this function.
 # ABC Radio National seems not to provide news podcasts. 
 # That is why we record their next news broadcast for 6 minutes. 
 # (On the hour + estimated Internet delay).
@@ -51,7 +52,7 @@ echo "Timer set for recording ABC news. Select additional broadcasts or listen t
 ( now_is=$(date +%H); next_hour=$(date -d "$now_is + 1 hour" +'%H:%M:%S'); now_in_seconds=$(date +'%H:%M:%S'); SEC1=$(date +%s -d "${now_in_seconds}"); SEC2=$(date +%s -d "${next_hour}"); DIFFSEC=$(( SEC2 - SEC1 + 15 )); sleep "$DIFFSEC" ) &
 # sleep "$DIFFSEC" ) &
 # for testing: sleep 30 ) &
-wait
+until wait;do :;done # Because of trapping Ctrl + C; see https://superuser.com/questions/1719758/bash-script-to-catch-ctrlc-at-higher-level-without-interrupting-the-foreground
 now=$(date +%F_%H-%M)
 cvlc -q http://live-radio01.mediahubaustralia.com/2RNW/mp3/ --sout file/mp3:/home/$USER/funkRadio/Talk/ABCradnatnews1_"$now" --run-time=360 vlc://quit > /dev/null 2>&1
 if [[ $speechresult = "Yes" ]]
@@ -333,7 +334,7 @@ listen_to_the_radio () {
 		fi
 	fi
   
-  clear
+  # clear
   if [[ "$skip_music_decision" = "No" ]]
   then
 		random_song="$(shuf -n 1 "${Playlist}")"
@@ -358,10 +359,10 @@ listen_to_the_radio () {
 
   if [ ${#array_of_news_broadcasts[@]} -eq 0 ]
   then
-    # echo "No downloaded broadcasts available."
     if [[ "$skip_music_decision" = "Yes" ]]
 		then
-			echo "No downloaded broadcasts are available and no music playlist was selected."
+		  byebye=$(date +'%A %H:%M')
+			echo "No downloaded broadcasts were available and no music playlist was selected. Said Byebye at $byebye."
 			exit 0
 		else
     listen_to_the_radio
@@ -575,4 +576,5 @@ then
 	fi
 fi
 control_panel
+
 # ~/funkRadio/funkRadio.sh
