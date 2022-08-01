@@ -37,7 +37,19 @@ Then, create a log file:
 
 Also copy the sound file called ocean_wave.mp3 to the ~/funkRadio/ directory. This ten-second file precedes the first news broadcast when you listen to funkRadio. It is also played between the broadcasts if you have selected not to play music during your listening session. If you do not want to have ocean_wave.mp3 file in your system, it will be replaced by two seconds of silence.
 
-If you already have a music playlist of the m3u format, please place a copy of it in the folder ~/funkRadio/. In this case you will not need to make a playlist when you launch funkRadio for the first time.
+If you already have a music playlist of the m3u format, please place a copy of it in the folder ~/funkRadio/. In this case you will not need to make a playlist when you launch funkRadio for the first time. However, please note that the playlist should be only a list of files, such as
+
+/home/your_username/Musiikki/Reggae/Misty in Roots/Roots Controller/How Long Jah.mp3
+/home/your_username/Musiikki/Reggae/Misty in Roots/Roots Controller/Dance Hall Babylon.mp3
+/home/your_username/Musiikki/Reggae/Misty in Roots/Roots Controller/True Rasta.mp3
+/home/your_username/Musiikki/Reggae/Misty in Roots/Roots Controller/New Day.mp3
+/home/your_username/Musiikki/Reggae/Misty in Roots/Roots Controller/Ghetto Of The City (Live).mp3
+/home/your_username/Musiikki/Reggae/Misty in Roots/Roots Controller/Cover Up.mp3
+/home/your_username/Musiikki/Reggae/Misty in Roots/Live At Town and Country Club London 1991.mp3
+
+This is because we use the 'mpg123' music player, and it does not accept playlists created with e.g., VLC.
+
+
 
 ## Lauching funkRadio and making a music playlist
 
