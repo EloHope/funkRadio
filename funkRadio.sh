@@ -44,7 +44,7 @@ fi
 }
 
 abcradnatnews () {
-trap '' 2  # Disable Ctrl + C within this function.
+trap '' 2  # Disable Ctrl + C for this function.
 # ABC Radio National seems not to provide news podcasts. 
 # That is why we record their next news broadcast for 6 minutes. 
 # (On the hour + estimated Internet delay).
@@ -88,15 +88,6 @@ ffmpeg -nostats -loglevel 0 -i ~/funkRadio/Talk/bbc4news_briefing_"$now" -acodec
 rm ~/funkRadio/Talk/bbc4news_briefing_"$now"
 }
 
-
-# This option is not included in the control panel.
-bbc4today () {
-# A selected part of Today programme of BBC Radio 4. Often about economic news.
-now=$(date +%F_%H-%M)
-wget -q -O ~/funkRadio/Talk/BBC4today_"$now".mp3 $(curl -s https://podcasts.files.bbci.co.uk/p02nrtvg.rss | grep -o 'https*://[^"]*mp3' | head -1) > /dev/null 2>&1
-echo "BBC4today"_"$now" >> ~/funkRadio/Archive/funkRadiolog.txt
-}
-
 bbcnews () {
 # BBC World Service News - a 5 minute overview of topical events.
 echo "Downloading BBC World Service News. Select additional broadcasts or listen to funkRadio."
@@ -107,7 +98,7 @@ ffmpeg -nostats -loglevel 0 -i ~/funkRadio/Talk/BBCnews_"$now" -acodec libmp3lam
 if [[ $speechresult = "Yes" ]]
 then
 	# ffmpeg speechnorm normalization: default value is speechnorm=p=0.95.
-	ffmpeg -i ~/funkRadio/Talk/BBCnews1_"$now".mp3 -filter:a speechnorm=p=0.95 ~/funkRadio/Talk/BBCnews_"$now".mp3 > /dev/null 2>&1
+	ffmpeg -i ~/funkRadio/Talk/BBCnews1_"$now".mp3 -filter:a speechnorm=p=0.93 ~/funkRadio/Talk/BBCnews_"$now".mp3 > /dev/null 2>&1
 else
 	ffmpeg -i ~/funkRadio/Talk/BBCnews1_"$now".mp3 -af 'volume=2.8' ~/funkRadio/Talk/BBCnews_"$now".mp3 > /dev/null 2>&1
 fi
@@ -128,9 +119,9 @@ ffmpeg -ss 3.9 -i ~/funkRadio/Talk/Deutschlandfunk1_"$now" -t ${news_de_duration
 if [[ $speechresult = "Yes" ]]
 then
 	# ffmpeg speechnorm normalization: default value is speechnorm=p=0.95.
-	ffmpeg -i ~/funkRadio/Talk/Deutschlandfunk2_"$now".mp3 -filter:a speechnorm=p=0.95 ~/funkRadio/Talk/Deutschlandfunk_"$now".mp3 > /dev/null 2>&1
+	ffmpeg -i ~/funkRadio/Talk/Deutschlandfunk2_"$now".mp3 -filter:a speechnorm=p=0.90 ~/funkRadio/Talk/Deutschlandfunk_"$now".mp3 > /dev/null 2>&1
 else
-	ffmpeg -i ~/funkRadio/Talk/Deutschlandfunk2_"$now".mp3 -af 'volume=2.8' ~/funkRadio/Talk/Deutschlandfunk_"$now".mp3 > /dev/null 2>&1
+	ffmpeg -i ~/funkRadio/Talk/Deutschlandfunk2_"$now".mp3 -af 'volume=1.4' ~/funkRadio/Talk/Deutschlandfunk_"$now".mp3 > /dev/null 2>&1
 fi
 rm ~/funkRadio/Talk/Deutschlandfunk1_"$now"
 rm ~/funkRadio/Talk/Deutschlandfunk2_"$now".mp3
@@ -160,10 +151,10 @@ ylepsavo () {
 # Local news from Savo region presented by Finnish public broadcaster YLE.
 echo "Dowloading news from Savo region in Eastern Finland. Select additional broadcasts or listen to funkRadio."
 now=$(date +%F_%H-%M)
-wget -q -O ~/funkRadio/Talk/Ylepsavo1_"$now".mp3 $(curl -s https://feeds.yle.fi/areena/v1/series/1-4479312.rss? | grep -o 'https*://[^"]*mp3' | head -1) > /dev/null 2>&1
+addr_in_haystack="$(curl -s -r 2000-3000 https://feeds.yle.fi/areena/v1/series/1-4479312.rss? )" > /dev/null 2>&1; addr2="$(echo "${addr_in_haystack}" | grep -o 'url=.*" type' | head -1)" > /dev/null 2>&1; addr2="${addr2//\" type}"; addr2="${addr2//\url=\"}"; wget -q -O ~/funkRadio/Talk/Ylepsavo1_"$now".mp3 "$addr2" > /dev/null 2>&1
 # Removing a too loud station identification from the beginning of the file.
 ffmpeg -ss 3.5 -i ~/funkRadio/Talk/Ylepsavo1_"$now".mp3 ~/funkRadio/Talk/Ylepsavo_"$now".mp3  > /dev/null 2>&1
-touch ~/funkRadio/Talk/Ylepsavo_"$now".mp3 # Correcting timestamp.
+# touch ~/funkRadio/Talk/Ylepsavo_"$now".mp3 # Correcting timestamp.
 rm ~/funkRadio/Talk/Ylepsavo1_"$now".mp3
 echo "YLE_Savo"_"$now" >> ~/funkRadio/Archive/funkRadiolog.txt
 }
@@ -172,10 +163,10 @@ yleppohjanmaa () {
 # Local news from Pohjanmaa region presented by Finnish public broadcaster YLE.
 echo "Dowloading news from Pohjanmaa region in Northern Finland.. Select additional broadcasts or listen to funkRadio."
 now=$(date +%F_%H-%M)
-wget -q -O ~/funkRadio/Talk/Yleppohjanmaa1_"$now".mp3 $(curl -s https://feeds.yle.fi/areena/v1/series/1-4479456.rss? | grep -o 'https*://[^"]*mp3' | head -1) > /dev/null 2>&1
+addr_in_haystack="$(curl -s -r 2000-3000 https://feeds.yle.fi/areena/v1/series/1-4479456.rss?)" > /dev/null 2>&1; addr2="$(echo "${addr_in_haystack}" | grep -o 'url=.*" type' | head -1)" > /dev/null 2>&1; addr2="${addr2//\" type}"; addr2="${addr2//\url=\"}"; wget -q -O ~/funkRadio/Talk/Yleppohjanmaa1_"$now".mp3 "$addr2" > /dev/null 2>&1
 # Removing a too loud station identification from the beginning of the file.
 ffmpeg -ss 3.5 -i ~/funkRadio/Talk/Yleppohjanmaa1_"$now".mp3 ~/funkRadio/Talk/Yleppohjanmaa_"$now".mp3  > /dev/null 2>&1
-touch ~/funkRadio/Talk/Yleppohjanmaa_"$now".mp3 # Correcting timestamp.
+# touch ~/funkRadio/Talk/Yleppohjanmaa_"$now".mp3 # Correcting timestamp.
 rm ~/funkRadio/Talk/Yleppohjanmaa1_"$now".mp3
 echo "YLE_Pohjanmaa"_"$now" >> ~/funkRadio/Archive/funkRadiolog.txt
 }
@@ -183,13 +174,13 @@ echo "YLE_Pohjanmaa"_"$now" >> ~/funkRadio/Archive/funkRadiolog.txt
 yleradiosuomi () {
 # News from the Finnish public broadcaster YLE.
 now=$(date +%F_%H-%M)
-wget -q -O ~/funkRadio/Talk/YLE_Radio_Suomi1_"$now".mp3 $(curl -s https://feeds.yle.fi/areena/v1/series/1-1440981.rss? | grep -o 'https*://[^"]*mp3' | head -1) > /dev/null 2>&1
-# Removing a too loud station identification from the beginning of the file.
-ffmpeg -ss 3.5 -i ~/funkRadio/Talk/YLE_Radio_Suomi1_"$now".mp3 ~/funkRadio/Talk/YLE_Radio_Suomi_"$now".mp3  > /dev/null 2>&1
-touch ~/funkRadio/Talk/YLE_Radio_Suomi_"$now".mp3 # Correcting timestamp.
-rm ~/funkRadio/Talk/YLE_Radio_Suomi1_"$now".mp3
+addr_in_haystack="$(curl -s -r 2000-3000 https://feeds.yle.fi/areena/v1/series/1-1440981.rss?)" > /dev/null 2>&1; addr2="$(echo "${addr_in_haystack}" | grep -o 'url=.*" type' | head -1)" > /dev/null 2>&1; addr2="${addr2//\" type}"; addr2="${addr2//\url=\"}"; wget -q -O ~/funkRadio/Talk/YLEradiosuomi1_"$now".mp3 "$addr2" > /dev/null 2>&1
+ffmpeg -ss 3.5 -i ~/funkRadio/Talk/YLEradiosuomi1_"$now".mp3 ~/funkRadio/Talk/YLE_Radio_Suomi_"$now".mp3  > /dev/null 2>&1
+# touch ~/funkRadio/Talk/YLE_Radio_Suomi_"$now".mp3 # Correcting timestamp.
+rm ~/funkRadio/Talk/YLEradiosuomi1_"$now".mp3
 echo "YLE_Radio_Finland"_"$now" >> ~/funkRadio/Archive/funkRadiolog.txt
 }
+
 
 # =================================
 # MORE FUNCTIONS: SELECT MUSIC DIRECTORY, MAKE PLAYLISTS, PLAY NEWS BROADCASTS & MUSIC
@@ -362,15 +353,15 @@ listen_to_the_radio () {
     if [[ "$skip_music_decision" = "Yes" ]]
 		then
 		  byebye=$(date +'%A %H:%M')
-			echo "No downloaded broadcasts were available and no music playlist was selected. Said Byebye at $byebye."
+			echo "No downloaded broadcast or music playlist was available. Stopped at $byebye."
 			exit 0
 		else
     listen_to_the_radio
     fi
   else
+  sleep 1
   # first_news_broadcast="$(find /home/$USER/funkRadio/Talk/ -type f -printf '%T+ %f\n' | sort | head -n 1 | cut -d" " -f2)"
   a_news_broadcast="${array_of_news_broadcasts[0]}"
-  
   mpg123 -C "${a_news_broadcast}" # With '-vC' mpg123 controls might actually work, but with additional screen output
   # If you want to archive news broadcasts for later inspection:
     # mv "${a_news_broadcast}" /home/"$USER"/funkRadio/Archive/
