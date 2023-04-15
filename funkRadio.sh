@@ -331,7 +331,7 @@ listen_to_the_radio () {
 		random_song="$(shuf -n 1 "${Playlist}")"
 		random_song_basename=$(basename "${random_song}")
 		echo "Now playing ${random_song_basename}"
-		echo "${random_song_basename}" >> ~/funkRadio/Archive/funkRadiolog.txt
+		echo "${random_song}" >> ~/funkRadio/Archive/funkRadiolog.txt
 		mpg123 -C "${random_song}" # With '-vC' mpg123 controls might actually work, but with additional screen output
 	else
 	  if [ -e "$HOME/funkRadio/ocean_wave.mp3" ]
@@ -506,7 +506,7 @@ else
     fi
 fi
 
-( speech_norm_test ) &
+speech_norm_test
 
 # Select this option if you only want hear news, not music.
 echo "If you only want hear news, not music, please press 'Enter'. Otherwise, press other keys and Enter."
