@@ -10,9 +10,9 @@
 # - mpg123
 # - ffmpeg (version 4.4 or higher includes speechnorm filter, but
 # funkRadio runs OK even without that particular filter)
-# - youtube-dl
+# - yt-dlp (instead of  youtube-dl)
 # - curl
-# - shuf
+# - shuf (in most distributions, you can get it by installing 'coreutils')
 # - bc (for calculations)
 
 
@@ -83,7 +83,7 @@ bbc4news_briefing () {
 echo "Downloading BBC Radio 4 News Briefing. Select additional broadcasts or listen to funkRadio."
 now=$(date +%F_%H-%M)
 addr=$(wget -q -O - https://www.bbc.co.uk/programmes/b007rhyn/episodes/player | grep https://www.bbc.co.uk/sounds/play | grep -o -P '(?<=href=").*(?=")' | head -1) > /dev/null 2>&1
-youtube-dl -q --no-warnings -o ~/funkRadio/Talk/bbc4news_briefing_"$now" "${addr}" > /dev/null 2>&1
+yt-dlp -x --audio-format mp3 -o ~/funkRadio/Talk/bbc4news_briefing_"$now" "${addr}" > /dev/null 2>&1
 ffmpeg -nostats -loglevel 0 -i ~/funkRadio/Talk/bbc4news_briefing_"$now" -acodec libmp3lame -ac 2 -ab 128k -ar 48000 ~/funkRadio/Talk/bbc4news_briefing_"$now".mp3 > /dev/null 2>&1
 rm ~/funkRadio/Talk/bbc4news_briefing_"$now"
 }
@@ -93,7 +93,7 @@ bbcnews () {
 echo "Downloading BBC World Service News. Select additional broadcasts or listen to funkRadio."
 now=$(date +%F_%H-%M)
 addr=$(wget -q -O - https://www.bbc.co.uk/programmes/p002vsmz/episodes/player | grep https://www.bbc.co.uk/sounds/play | grep -o -P '(?<=href=").*(?=")' | head -1) > /dev/null 2>&1
-youtube-dl -q --no-warnings -o ~/funkRadio/Talk/BBCnews_"$now" "${addr}" > /dev/null 2>&1
+yt-dlp -x --audio-format mp3 -o ~/funkRadio/Talk/BBCnews_"$now" "${addr}" > /dev/null 2>&1
 ffmpeg -nostats -loglevel 0 -i ~/funkRadio/Talk/BBCnews_"$now" -acodec libmp3lame -ac 2 -ab 128k -ar 48000 ~/funkRadio/Talk/BBCnews1_"$now".mp3 > /dev/null 2>&1
 if [[ $speechresult = "Yes" ]]
 then
@@ -175,140 +175,18 @@ yleradiosuomi () {
 # News from the Finnish public broadcaster YLE.
 now=$(date +%F_%H-%M)
 addr_in_haystack="$(curl -s -r 2000-3000 https://feeds.yle.fi/areena/v1/series/1-1440981.rss?)" > /dev/null 2>&1; addr2="$(echo "${addr_in_haystack}" | grep -o 'url=.*" type' | head -1)" > /dev/null 2>&1; addr2="${addr2//\" type}"; addr2="${addr2//\url=\"}"; wget -q -O ~/funkRadio/Talk/YLEradiosuomi1_"$now".mp3 "$addr2" > /dev/null 2>&1
-ffmpeg -ss 3.5 -i ~/funkRadio/Talk/YLEradiosuomi1_"$now".mp3 ~/funkRadio/Talk/YLE_Radio_Suomi_"$now".mp3  > /dev/null 2>&1
+ffmpeg -ss 3.5 -i ~/funkRadio/Talk/YLEradiosuomi1_"$now".mp3 ~/funkRadio/Talk/YLEradiosuomi_"$now".mp3 > /dev/null 2>&1
 # touch ~/funkRadio/Talk/YLE_Radio_Suomi_"$now".mp3 # Correcting timestamp.
 rm ~/funkRadio/Talk/YLEradiosuomi1_"$now".mp3
 echo "YLE_Radio_Finland"_"$now" >> ~/funkRadio/Archive/funkRadiolog.txt
 }
 
-
 # =================================
-# MORE FUNCTIONS: SELECT MUSIC DIRECTORY, MAKE PLAYLISTS, PLAY NEWS BROADCASTS & MUSIC
-
-# First, let us select directory which, or its subdirectories contain mp3 files
-# that your may want to include in your music playlist.
-# =================================
-
-select_music_directory () {
-# Go to the home directory:
-cd ~
-# Then, type a number to select the corresponding directory:
-clear
-PS3="Please type number corresponding to directory that contains mp3 music files."
-select d in */
-do 
-  test -n "$d" && break
-  echo ">>> Invalid Selection"
-done
-fav=$PWD/"$d"
-
-IFS= read -re -i "$fav" -p 'Please accept (Enter) or modify (type text) the following: ' fav
-lastchar=${fav: -1}
-if [[ $lastchar != / ]]
-then
-  fav="$fav"/
-fi
-echo "Music playlist will be based on "$fav" and its subdirectories."
-}
-
-
-
-make_playlist () {
-if [[ "$skip_music_decision" = "Yes" ]]
-then
-	control_panel
-fi
-
-if [[ "$fav" = "" ]]
-then
-  select_music_directory
-else
-  echo "If it is OK that the playlist will be based on the directory $fav, press 'Enter'. Press another key if it is not OK."
-  read music_dir_decision
-  if [[ "$music_dir_decision" != "" ]]
-  then
-    select_music_directory
-  fi
-fi
-
-echo "If duration of songs does not matter, please press 'Enter'. Otherwise, type maximum duration of songs in minutes."
-read max_dur
-if [ "$max_dur" -eq "$max_dur" ] 2>/dev/null # Testing if "$max_dur" is a number.
-then
-	max_dur_sec=$(( 60 * $max_dur ))
-	duration_to_be_limited="Yes"
-else
-	echo "This playlist does not exclude long pieces of music."
-	duration_to_be_limited="No"
-fi
-	
-# Next we set keywords that to used in building the playlist: 
-# names of music directories, artists etc. identifying our favorite music files.
-
-cd $(dirname "$0") # Go to the directory containing this script.
-
-  number_of_searched_words=0
-  search_decision=just_to_get_started
-  until [ "${search_decision}" = "start" ]
-  do
-      echo "Type a keyword (only one at a time) - music directory, artist etc. - to set up the playlist. Typing keyword 'start' will build the playlist."
-      read search_decision
-      if [ "${search_decision}" != "start" ]
-      then
-          searched_words[$number_of_searched_words]="${search_decision}"
-          ((number_of_searched_words++))
-      fi
-  done
-
-  echo "Number of words searched for playlist:" "$number_of_searched_words"
-  keywords_for_playlist="$(printf "%s" "${searched_words[@]}")"
-  echo "Playlist is based on the following keywords: ${keywords_for_playlist}"
-  Playlist="${keywords_for_playlist}.m3u"
-
-  if [ -e "${Playlist}" ]; then echo "" > "${Playlist}"; fi
-
-  for i in "${searched_words[@]}"
-  do
-    music_descriptor="${i}"
-    IFS=$'\n'
-    for song in $(find "${fav}" -type f -name "*.mp3" -print | grep -i "${music_descriptor}")
-    do
-        if [ "$duration_to_be_limited" = "Yes" ]
-        then
-            song_duration=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${song}")
-            if (( ${song_duration%.*} <= "$max_dur_sec" ))
-            then
-                echo "${song}" >> "${Playlist}"
-            fi
-        else
-          echo "${song}" >> "${Playlist}"
-        fi
-    done
-  done
-
-  if [ -s "${Playlist}" ]
-  then
-    if [ "$duration_to_be_limited" = "Yes" ]
-    then
-        filename=$(basename "${Playlist}")
-        fname="${filename%.*}"
-        mv "${Playlist}" "${fname}_${max_dur}min.m3u"
-        Playlist="${fname}_${max_dur}min.m3u"
-    fi
-    Playlist_lines=$(wc -l "${Playlist}" | awk '{ print $1 }')
-    echo "Playlist ${Playlist} has $Playlist_lines lines."
-    control_panel
-  else
-    clear
-    echo "${Playlist} is empty."
-    make_playlist
-  fi
-  
-}
+# PLAY NEWS BROADCASTS & MUSIC
 
 # The function 'listen_to_the_radio' plays first a random piece of music from the playlist
-# and then the oldest news broadcast in the ~/funkRadio/Talk/ directory.
-# With Ctrl+C you can switch between music and news and back again.
+# and then a news broadcast in the ~/funkRadio/Talk/ directory.
+# With Ctrl+C you can t betweeen music and news. Ctrl+Z stops the program.
 
 listen_to_the_radio () {
   cd $(dirname "$0") # Go to the directory containing this script.
@@ -373,8 +251,8 @@ listen_to_the_radio () {
 }
 
 # =================================
-# THE CONTROL PANEL OF FUNKRADIO: SELECT BROADCASTS TO BE DOWNLOADED
-# AND PLAY FUNKRADIO OR TURN IT OFF
+# THE CONTROL PANEL OF FUNKRADIO: SELECT BROADCASTS TO BE DOWNLOADED,
+# PLAY FUNKRADIO, OR TURN IT OFF
 # =================================
 
 control_panel () {
@@ -400,9 +278,8 @@ cat <<- end
 9 Ylepohjanmaa - regional news from the Northern Pohjanmaa region in Finnish.
 10 BBC Radio 4 News Briefing - A 13 minute news summary available at about 7 am London time.
 11 ABCpm - news magazine from the ABC News.
-12 Make a new music playlist on the basis of your own keywords.
-13 Listen to the funkRadio - listen your favorite songs alternating with news.
-14 Turn off funkRadio - quit the script.
+12 Listen to the funkRadio - listen your favorite songs alternating with news.
+13 Turn funkRadio off - quit the script.
 end
 
   echo "Type one of the listed numbers to do what you want."
@@ -459,14 +336,10 @@ end
       ( abcpm ) &
       ;;
   "12")
-      echo "Next we shall make a new music playlist."
-      make_playlist
-      ;;
-  "13")
       echo "Listen to the funkRadio."
       listen_to_the_radio
       ;;
-  "14")
+  "13")
       echo "funkRadio was turned off."
       exit
       ;;
@@ -546,16 +419,17 @@ then
 
 	if [ ${#array_of_playlists[@]} -eq 0 ]
 	then
-		make_playlist
-	else
+		echo "No playlists of the format m3u available in directory ~/funkRadio."
+		exit
+  else
 		clear
 		echo "${#array_of_playlists[@]} playlists are available."
-		PS3='Type a number to select playlist. Type 0 to make a new playlist.'
+		PS3='Type a number to select playlist.'
 		select Playlist in "${array_of_playlists[@]}"
 		do
 			if [[ $REPLY == "0" ]]
 			then
-					make_playlist
+					:
 			else
 					break
 			fi
@@ -568,4 +442,4 @@ then
 fi
 control_panel
 
-# ~/funkRadio/funkRadio.sh
+# Script location: ~/funkRadio/funkRadio.sh
